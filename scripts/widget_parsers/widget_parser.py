@@ -18,17 +18,21 @@ def build_raw_classes(parser, repo_folder):
                             f"raw_widgets_{parser.widget_code}.py"
                             )
     with open(raw_file, "w") as rfile:
-        rfile.write(f'""" Auto Generated raw classes for {parser.widget_code}. """\n')
         rfile.write("from uuid import uuid4\n\n")
-        rfile.write("from decorators.decorators import function_wrapper\n")
+        rfile.write("from decorators.decorators import (function_wrapper, event_wrapper, init_wrapper)\n")
         for widget_class in classes:
             widget_info = parser._classes[widget_class]
             rfile.write(f"\n\nclass {widget_class}:\n")
             rfile.write(f"{FOURSPC}def __init__(self):\n")
             rfile.write(f"{EIGHTSPC}self._unique_id = str(uuid4())\n")
-            rfile.write(f"{EIGHT}")
-            for jsevent, jsevent_info in widget_info["events"].items():
-                
+            rfile.write(f"{EIGHTSPC}self._event_param_qty = " + "{\n")
+            for jsevent in sorted(widget_info["events"].keys()):
+                jsevent_info = widget_info["events"][jsevent]
+                rfile.write(f'{EIGHTSPC}{FOURSPC}"{jsevent}": {jsevent_info["argslen"]},\n')
+            rfile.write(f"{EIGHTSPC}" + "}\n")
+            rfile.write(f"\n{FOURSPC}@init_wrapper\n")
+            rfile.write(f"{FOURSPC}def init{widget_class}(self, config):\n")
+            rfile.write(f"{EIGHTSPC}pass\n")
             for jsfunction in widget_info["functions"]:
                 rfile.write(f"\n{FOURSPC}@function_wrapper")
                 rfile.write(f"\n{FOURSPC}def {jsfunction['name']}(self")
@@ -36,17 +40,13 @@ def build_raw_classes(parser, repo_folder):
                     rfile.write(", " + (", ".join(jsfunction["params"])))
                 rfile.write("):\n")
                 rfile.write(f"{EIGHTSPC}pass\n")
-            for jsevent, jsevent_info in widget_info["events"].items():
+            for jsevent in sorted(widget_info["events"].keys()):
+                jsevent_info = widget_info["events"][jsevent]
+                rfile.write(f"\n{FOURSPC}@event_wrapper")
                 rfile.write(f"\n{FOURSPC}def {jsevent}(self")
-                rfile.write(f", callable, block_signal = False, *ret_widget_values):\n")
+                rfile.write(f", callable, ret_widget_values=[], block_signal = False):\n")
                 rfile.write(f'{EIGHTSPC}"""JS_ARGS: {jsevent_info["argstr"]}"""\n')
                 rfile.write(f"{EIGHTSPC}pass\n")
-                #for argnum in range(0, jsevent_info["argslen"]):
-                #    if argnum == 0:
-                #        rfile.write(", ")
-                #    rfile.write(f"arg{argnum}")
-                #    if argnum < jsevent_info["argslen"]-1:
-                #        rfile.write(", ")
         
 
 def run_parsers(repo_folder):
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     arg_parser.add_argument(
         '--pywrm_project_path',
         help='path to pywrm project',
-        default= f"pywrm/"
+        default= os.path.dirname(__file__)
     )
     args = arg_parser.parse_args()
     run_parsers(args.pywrm_project_path)
